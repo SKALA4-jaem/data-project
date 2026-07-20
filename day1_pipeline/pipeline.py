@@ -5,17 +5,28 @@ Open-Meteo, Countries.dev, ip-api의 데이터를
 asyncio와 httpx를 이용해 동시에 수집한다.
 """
 
-import asyncio
-import time
-from datetime import datetime
-from typing import Literal
-from pathlib import Path
+import asyncio  ####여러 API 요청 비동기로 실행할 때 사용
+import time  ####실행 시간 측정할 때 사용
+from datetime import (
+    datetime,
+)  ####API에서 받은 날짜 문자열이 실제 날짜 형식인지 검사할 때 사용
+from typing import Annotated, Literal  ####정해진 값과 목록 내부 범위를 검사할 때 사용
+from pathlib import Path  ####파일, 폴더 경로 안전하게 만들 때 사용
 
-import httpx
-import pandas as pd
+# 외부 라이브러리
+import httpx  ####인터넷 API 호출
+import pandas as pd  ####데이터를 표로 만들고 CVS,Parquest 파일로 저장
 from pydantic import BaseModel, Field, IPvAnyAddress, ValidationError
 
+"""
+BaseModel: 검사표를 만드는 기본 클래스
+Field: 추가 범위 조건
+IPvAnyAddress: IP 주소 형식 검사
+ValidationError: 검증 실패 오류
+"""
 
+
+# 파일 경로 설정
 BASE_DIR = Path(__file__).resolve().parent
 OUTPUT_DIR = BASE_DIR / "output"
 CSV_FILE = OUTPUT_DIR / "collected_data.csv"
@@ -41,16 +52,18 @@ API_URLS = {
 }
 
 
+# Pydantic 모델 3개
 class WeatherRecord(BaseModel):
-    """Open-Meteo 응답에서 추출한 서울 시간별 날씨 한 건."""
+    """Open-Meteo에서 수집한 서울 시간대별 날씨 한 건."""
 
     source: Literal["weather"] = "weather"
     latitude: float = Field(ge=-90, le=90)
     longitude: float = Field(ge=-180, le=180)
     timezone: str = Field(min_length=1)
-    observed_at: datetime
-    temperature_2m: float = Field(ge=-100, le=70)
-    precipitation_probability: int = Field(ge=0, le=100)
+
+    observed_at: list[datetime]
+    temperature_2m: list[Annotated[float, Field(ge=-100, le=70)]]
+    precipitation_probability: list[Annotated[int, Field(ge=0, le=100)]]
 
 
 class CountryRecord(BaseModel):
@@ -81,6 +94,7 @@ class IPRecord(BaseModel):
     timezone: str = Field(min_length=1)
 
 
+# 실제 데이터를 검사하는 함수
 def validate_collected_data(
     collected_data: dict[str, dict],
 ) -> dict[str, BaseModel]:
@@ -101,11 +115,9 @@ def validate_collected_data(
                 latitude=weather_raw["latitude"],
                 longitude=weather_raw["longitude"],
                 timezone=weather_raw["timezone"],
-                observed_at=weather_hourly["time"][0],
-                temperature_2m=weather_hourly["temperature_2m"][0],
-                precipitation_probability=(
-                    weather_hourly["precipitation_probability"][0]
-                ),
+                observed_at=weather_hourly["time"],
+                temperature_2m=weather_hourly["temperature_2m"],
+                precipitation_probability=weather_hourly["precipitation_probability"],
             ),
             "country": CountryRecord(
                 name=country_raw["name"],
@@ -129,6 +141,7 @@ def validate_collected_data(
             ),
         }
 
+    # 검증 오류 처리
     except ValidationError as error:
         # 값의 타입이나 범위가 Pydantic 규칙에 맞지 않는 경우
         print("\n[Pydantic 검증 실패]")
@@ -144,14 +157,14 @@ def validate_collected_data(
     return validated_data
 
 
+# 검증 데이터를 CSV와 Parquet로 저장하고 읽기·쓰기 시간을 비교한다.
 def save_and_compare_formats(
     validated_data: dict[str, BaseModel],
     csv_path: Path,
     parquet_path: Path,
 ) -> pd.DataFrame:
-    """검증 데이터를 CSV와 Parquet로 저장하고 읽기·쓰기 시간을 비교한다."""
 
-    # Pydantic 객체를 저장 가능한 일반 딕셔너리로 변환한다.
+    # Pydantic 객체를 저장 가능한 일반 딕셔너리로 변환한다.(리스트 컴프리헨션)
     rows = [record.model_dump(mode="json") for record in validated_data.values()]
 
     # 딕셔너리 3개를 pandas 표로 변환한다.
@@ -210,12 +223,12 @@ def save_and_compare_formats(
     return dataframe
 
 
+# API 하나를 비동기로 호출하고 JSON 응답을 반환한다.
 async def fetch_api(
     client: httpx.AsyncClient,
     api_name: str,
     url: str,
 ) -> tuple[str, dict]:
-    """API 하나를 비동기로 호출하고 JSON 응답을 반환한다."""
 
     print(f"[요청 시작] {api_name}")
 
@@ -226,8 +239,8 @@ async def fetch_api(
     return api_name, response.json()
 
 
+# 3개 API를 asyncio.gather()로 동시에 수집한다.
 async def collect_all() -> dict[str, dict]:
-    """3개 API를 asyncio.gather()로 동시에 수집한다."""
 
     timeout = httpx.Timeout(15.0)
 
@@ -243,8 +256,8 @@ async def collect_all() -> dict[str, dict]:
     return dict(results)
 
 
+# 메인 : 비동기 데이터 수집을 실행하고 결과를 확인한다.
 def main() -> None:
-    """비동기 데이터 수집을 실행하고 결과를 확인한다."""
 
     started_at = time.perf_counter()
 

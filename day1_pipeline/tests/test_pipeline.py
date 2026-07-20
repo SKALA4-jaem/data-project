@@ -13,15 +13,15 @@ def test_weather_record_accepts_valid_data():
         latitude=37.55,
         longitude=127.0,
         timezone="Asia/Seoul",
-        observed_at="2026-07-20T00:00",
-        temperature_2m=23.2,
-        precipitation_probability=6,
+        observed_at=["2026-07-20T00:00", "2026-07-20T01:00"],
+        temperature_2m=[23.2, 22.8],
+        precipitation_probability=[6, 10],
     )
 
     assert record.source == "weather"
     assert record.latitude == 37.55
-    assert record.temperature_2m == 23.2
-    assert record.precipitation_probability == 6
+    assert record.temperature_2m == [23.2, 22.8]
+    assert record.precipitation_probability == [6, 10]
 
 
 def test_weather_record_rejects_invalid_probability():
@@ -32,7 +32,7 @@ def test_weather_record_rejects_invalid_probability():
             latitude=37.55,
             longitude=127.0,
             timezone="Asia/Seoul",
-            observed_at="2026-07-20T00:00",
-            temperature_2m=23.2,
-            precipitation_probability=150,
+            observed_at=["2026-07-20T00:00"],
+            temperature_2m=[23.2],
+            precipitation_probability=[150],
         )
