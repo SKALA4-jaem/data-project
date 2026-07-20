@@ -1,0 +1,4 @@
+﻿source,latitude,longitude,timezone,observed_at,temperature_2m,precipitation_probability,name,native_name,country_code,region,capital,population,area,population_density,status,ip_address,country,city
+weather,37.55,127.0,Asia/Seoul,2026-07-20T00:00:00,23.2,6.0,,,,,,,,,,,,
+country,,,,,,,Korea (Republic of),대한민국,KR,Asia,Seoul,51780579.0,100210.0,516.72,,,,
+ip,39.03,-77.5,America/New_York,,,,,,US,,,,,,success,8.8.8.8,United States,Ashburn
