@@ -5,19 +5,17 @@ Open-Meteo, Countries.dev, ip-api의 데이터를
 asyncio와 httpx를 이용해 동시에 수집한다.
 """
 
-import asyncio  ####여러 API 요청 비동기로 실행할 때 사용
-import time  ####실행 시간 측정할 때 사용
-from datetime import (
-    datetime,
-)  ####API에서 받은 날짜 문자열이 실제 날짜 형식인지 검사할 때 사용
-from typing import Annotated, Literal  ####정해진 값과 목록 내부 범위를 검사할 때 사용
-from pathlib import Path  ####파일, 폴더 경로 안전하게 만들 때 사용
 
-# 외부 라이브러리
+import asyncio ####여러 API 요청 비동기로 실행할 때 사용
+import time ####실행 시간 측정할 때 사용
+from datetime import datetime  ####API에서 받은 날짜 문자열이 실제 날짜 형식인지 검사할 때 사용
+from typing import Annotated, Literal ####정해진 값과 목록 내부 범위를 검사할 때 사용
+from pathlib import Path ####파일, 폴더 경로 안전하게 만들 때 사용
+
+#외부 라이브러리
 import httpx  ####인터넷 API 호출
-import pandas as pd  ####데이터를 표로 만들고 CVS,Parquest 파일로 저장
-from pydantic import BaseModel, Field, IPvAnyAddress, ValidationError
-
+import pandas as pd ####데이터를 표로 만들고 CVS,Parquest 파일로 저장
+from pydantic import BaseModel, Field, IPvAnyAddress, ValidationError 
 """
 BaseModel: 검사표를 만드는 기본 클래스
 Field: 추가 범위 조건
@@ -26,7 +24,7 @@ ValidationError: 검증 실패 오류
 """
 
 
-# 파일 경로 설정
+#파일 경로 설정
 BASE_DIR = Path(__file__).resolve().parent
 OUTPUT_DIR = BASE_DIR / "output"
 CSV_FILE = OUTPUT_DIR / "collected_data.csv"
@@ -51,8 +49,7 @@ API_URLS = {
     ),
 }
 
-
-# Pydantic 모델 3개
+#Pydantic 모델 3개
 class WeatherRecord(BaseModel):
     """Open-Meteo에서 수집한 서울 시간대별 날씨 한 건."""
 
@@ -93,8 +90,7 @@ class IPRecord(BaseModel):
     longitude: float = Field(ge=-180, le=180)
     timezone: str = Field(min_length=1)
 
-
-# 실제 데이터를 검사하는 함수
+#실제 데이터를 검사하는 함수
 def validate_collected_data(
     collected_data: dict[str, dict],
 ) -> dict[str, BaseModel]:
@@ -117,7 +113,9 @@ def validate_collected_data(
                 timezone=weather_raw["timezone"],
                 observed_at=weather_hourly["time"],
                 temperature_2m=weather_hourly["temperature_2m"],
-                precipitation_probability=weather_hourly["precipitation_probability"],
+                precipitation_probability=weather_hourly[
+                    "precipitation_probability"
+                ],
             ),
             "country": CountryRecord(
                 name=country_raw["name"],
@@ -141,13 +139,13 @@ def validate_collected_data(
             ),
         }
 
-    # 검증 오류 처리
+    #검증 오류 처리
     except ValidationError as error:
         # 값의 타입이나 범위가 Pydantic 규칙에 맞지 않는 경우
         print("\n[Pydantic 검증 실패]")
         print(error)
         raise
-
+    
     except (KeyError, IndexError, TypeError) as error:
         # API 응답에 필요한 키나 시간별 값이 없는 경우
         print(f"\n[API 응답 구조 오류] {error}")
@@ -157,7 +155,7 @@ def validate_collected_data(
     return validated_data
 
 
-# 검증 데이터를 CSV와 Parquet로 저장하고 읽기·쓰기 시간을 비교한다.
+#검증 데이터를 CSV와 Parquet로 저장하고 읽기·쓰기 시간을 비교한다.
 def save_and_compare_formats(
     validated_data: dict[str, BaseModel],
     csv_path: Path,
@@ -223,12 +221,13 @@ def save_and_compare_formats(
     return dataframe
 
 
-# API 하나를 비동기로 호출하고 JSON 응답을 반환한다.
+#API 하나를 비동기로 호출하고 JSON 응답을 반환한다.
 async def fetch_api(
     client: httpx.AsyncClient,
     api_name: str,
     url: str,
 ) -> tuple[str, dict]:
+    
 
     print(f"[요청 시작] {api_name}")
 
@@ -238,8 +237,7 @@ async def fetch_api(
     print(f"[응답 완료] {api_name}: HTTP {response.status_code}")
     return api_name, response.json()
 
-
-# 3개 API를 asyncio.gather()로 동시에 수집한다.
+#3개 API를 asyncio.gather()로 동시에 수집한다.
 async def collect_all() -> dict[str, dict]:
 
     timeout = httpx.Timeout(15.0)
@@ -256,7 +254,7 @@ async def collect_all() -> dict[str, dict]:
     return dict(results)
 
 
-# 메인 : 비동기 데이터 수집을 실행하고 결과를 확인한다.
+#메인 : 비동기 데이터 수집을 실행하고 결과를 확인한다.
 def main() -> None:
 
     started_at = time.perf_counter()
